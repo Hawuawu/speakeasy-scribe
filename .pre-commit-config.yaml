@@ -6,6 +6,12 @@ repos:
       - id: ruff-format
   - repo: local
     hooks:
+      - id: mypy
+        name: mypy --strict
+        entry: mypy
+        language: system
+        types: [python]
+        pass_filenames: false
       - id: pytest
         name: pytest
         entry: pytest -q --no-cov

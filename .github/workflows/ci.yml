@@ -25,6 +25,7 @@ jobs:
       - run: pip install -e ".[dev]"
       - run: ruff check .
       - run: ruff format --check .
+      - run: mypy
       - run: pytest --cov-report=json
       - name: Examples validate and preview
         run: |

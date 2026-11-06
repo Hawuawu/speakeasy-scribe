@@ -109,7 +109,14 @@ SpeakEasy supports exactly these events: `ENTER_COMBAT`, `LEAVE_COMBAT`, `LOW_HE
 
 Python ≥ 3.10, PyYAML only at runtime. Code in `src/speakeasy_scribe/`:
 `luadata.py` (data-only Lua SavedVariables reader/writer; never executes Lua), `speakeasy.py` (SpeakEasy's
-rules), `model.py` (YAML → validated scenes), `savedvars.py` (WTF paths, merge, backups), `preview.py`
-(HTML), `cli.py`. Run `ruff check . && ruff format --check . && pytest` before committing (pre-commit runs
-ruff; pre-push runs pytest). `tests/test_upstream.py` runs SpeakEasy's real `L.Db.Load` (needs `lua5.1`)
+rules), `issues.py` (`Report`/`Scope`: where problems are collected), `scenes.py` (typed `Line`, `Scene`,
+`Spell`, `Trigger`, `Wheel`; each has `parse`, `to_speakeasy`, `from_speakeasy`, `to_yaml`), `model.py`
+(`ProfileLoader` merges YAML files into a validated `Profile`), `savedvars.py` (WTF paths,
+`SavedVariablesFile`, `SetMerger`, backups), `preview.py` (HTML), `cli.py`.
+
+Standards, all enforced in CI and pre-commit: `ruff check .` (pycodestyle, pyflakes, isort, bugbear, bandit,
+pydocstyle, annotations, McCabe complexity ≤ 10), `ruff format --check .`, `mypy` (strict, `src/`) and
+`pytest` (≥ 90 % coverage). Validation rules belong in the `parse` method of the class they check; report
+problems through a `Scope` rather than raising. Unit tests for a class go in `tests/test_scenes.py`; whole
+profiles in `tests/test_model.py`. `tests/test_upstream.py` runs SpeakEasy's real `L.Db.Load` (needs `lua5.1`)
 over our output; keep it passing when SpeakEasy's format changes.

@@ -26,12 +26,12 @@ def test_examples_are_clean(name):
 def test_scene_defaults_and_ids(tmp_path):
     profile = load(tmp_path, "scenes:\n  - name: Good Morning!\n    lines: ['Hi']\n")
     scene = profile.scenes[0]
-    assert scene["id"] == "goodmorning"
-    assert scene["channel"] == "SAY"
-    assert scene["icon"] == 134400
-    assert scene["cooldown"] == 2
-    assert scene["lines"] == [{"text": "Hi", "enabled": True}]
-    assert model.to_set(profile)["scenes"][0]["id"] == "goodmorning"
+    assert scene.id == "goodmorning"
+    assert scene.channel == "SAY"
+    assert scene.icon == 134400
+    assert scene.cooldown == 2
+    assert scene.to_speakeasy()["lines"] == [{"text": "Hi", "enabled": True}]
+    assert profile.to_set()["scenes"][0]["id"] == "goodmorning"
 
 
 @pytest.mark.parametrize(
@@ -109,7 +109,7 @@ def test_files_merge_and_conflict(tmp_path):
     a = write_yaml(tmp_path / "a.yaml", BASE + "wheel: [[a]]\nscenes: [{name: A, lines: [x]}]\n")
     b = write_yaml(tmp_path / "b.yaml", "character: {name: Other}\nwheel: [[a]]\nscenes: [{name: B, lines: [y]}]\n")
     profile = model.load([a, b])
-    assert [s["id"] for s in profile.scenes] == ["a", "b"]
+    assert [s.id for s in profile.scenes] == ["a", "b"]
     assert any("differs" in m for m in messages(profile))
     assert any("already set" in m for m in messages(profile))
 
@@ -134,13 +134,13 @@ def test_spell_trigger_and_round_trip(tmp_path):
         "wheel: [[cast, 'emote:DANCE']]\n",
     )
     assert profile.issues == []
-    data = model.to_set(profile)
+    data = profile.to_set()
     assert data["triggers"][0]["options"]["spells"] == [{"spell": "Fireball"}, {"spell": "Drink", "item": "Water"}]
     assert data["wheelPages"] == [["cast", "emote:DANCE", "", "", "", "", "", ""]]
     exported = model.from_set(data, {"name": "Test", "realm": "Realm"})
     again = model.load([write_yaml(tmp_path / "again.yaml", __import__("yaml").safe_dump(exported))])
     assert again.issues == []
-    assert model.to_set(again) == data
+    assert again.to_set() == data
 
 
 def test_from_set_tolerates_odd_shapes():

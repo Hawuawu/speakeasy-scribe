@@ -69,7 +69,7 @@ targeting an NPC. There is no "joined a party" trigger; put such a scene on the 
 
 ## Security
 
-- **CI:** ruff lint and format, pytest with ≥ 90 % coverage on Linux and Windows, Python 3.10 and 3.13, and a
+- **CI:** ruff lint (including docstrings, annotations and complexity ≤ 10) and format, `mypy --strict`, pytest with ≥ 90 % coverage on Linux and Windows, Python 3.10 and 3.13, and a
   check that SpeakEasy's own load-time clean-up keeps every scene we write.
 - **Security workflow:** Semgrep SAST (`p/python`, `p/secrets`, `p/github-actions`), Ruff bandit rules,
   gitleaks over full history, pip-audit, and an OWASP ZAP baseline DAST scan of generated previews served

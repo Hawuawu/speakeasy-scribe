@@ -5,10 +5,10 @@ from __future__ import annotations
 import html
 import math
 import re
-from typing import Any
 
 from . import speakeasy as se
-from .model import Profile, nbytes
+from .model import Profile
+from .scenes import Line, Scene, Trigger, Wheel, nbytes
 
 CHAT = {
     "SAY": ("#ffffff", "{name} says: {text}"),
@@ -92,96 +92,94 @@ def _fill(text: str, values: dict[str, str]) -> tuple[str, str]:
     return _VARIABLE.sub(plain, text).strip(), "".join(parts).strip()
 
 
-def _chat_line(scene: dict[str, Any], line: dict[str, Any], values: dict[str, str]) -> str:
-    color, template = CHAT[scene["channel"]]
-    emote = line.get("emote") or scene.get("defaultEmote")
-    plain, rich = _fill(line["text"], values)
+def _chat_line(scene: Scene, line: Line, values: dict[str, str]) -> str:
+    color, template = CHAT[scene.channel]
+    emote = line.emote or scene.default_emote
+    plain, rich = _fill(line.text, values)
     out = []
     if emote:
         out.append(f'<span class="anim">/{html.escape(emote.lower())} &mdash; {html.escape(values["playerName"])} performs {html.escape(emote)}</span>')
     if plain:
         name = html.escape(values["playerName"])
-        if scene["channel"] == "EMOTE":
+        if scene.channel == "EMOTE":
             rich = _QUOTED.sub(r'<span class="speech">\1</span>', rich)
         size = nbytes(plain)
         over = " over" if size > se.MAX_LINE_BYTES else ""
         out.append(f'<span style="color:{color}">{template.format(name=name, text=rich)}</span><span class="bytes{over}">{size}/{se.MAX_LINE_BYTES}</span>')
-    cls = "" if line.get("enabled", True) else ' class="off"'
+    cls = "" if line.enabled else ' class="off"'
     return f"<div{cls}>{'<br>'.join(out)}</div>"
 
 
-def _scene_card(scene: dict[str, Any], values: dict[str, str], triggers: list[dict[str, Any]]) -> str:
-    badges = [scene["channel"], f"cooldown {scene['cooldown']}s", f"/speakeasy {scene['id']}"]
-    if scene.get("defaultEmote"):
-        badges.append(f"emote {scene['defaultEmote']}")
-    if not scene.get("enabled", True):
+def _scene_card(scene: Scene, values: dict[str, str], triggers: list[Trigger]) -> str:
+    badges = [scene.channel, f"cooldown {scene.cooldown}s", f"/speakeasy {scene.id}"]
+    if scene.default_emote:
+        badges.append(f"emote {scene.default_emote}")
+    if not scene.enabled:
         badges.append("disabled")
-    badges += [f"trigger: {t['event']} ({t['chance']}%)" for t in triggers if t["sceneId"] == scene["id"]]
-    raw = "\n".join(f"- {line['text']}" + (f"   [{line['emote']}]" if line.get("emote") else "") for line in scene["lines"])
-    lines = "".join(_chat_line(scene, line, values) for line in scene["lines"])
+    badges += [f"trigger: {t.event} ({t.chance}%)" for t in triggers if t.scene_id == scene.id]
+    raw = "\n".join(f"- {line.text}" + (f"   [{line.emote}]" if line.emote else "") for line in scene.lines)
+    lines = "".join(_chat_line(scene, line, values) for line in scene.lines)
     return (
-        f'<section class="card"><h2>{html.escape(scene["name"])}</h2>'
+        f'<section class="card"><h2>{html.escape(scene.name)}</h2>'
         + "".join(f'<span class="badge">{html.escape(str(b))}</span>' for b in badges)
         + f'<div class="chat">{lines or "<em>no lines</em>"}</div>'
         f"<details><summary>Raw lines</summary><pre>{html.escape(raw)}</pre></details></section>"
     )
 
 
+def _wheel_slot(index: int, slot: str, names: dict[str, str]) -> str:
+    angle = -math.pi / 2 + index * 2 * math.pi / se.WHEEL_SLOTS
+    left, top = 50 + 38 * math.cos(angle), 50 + 38 * math.sin(angle)
+    if not slot:
+        label, cls = "empty", "slot empty"
+    elif slot.startswith(se.EMOTE_SLOT_PREFIX):
+        label, cls = "/" + slot[len(se.EMOTE_SLOT_PREFIX) :].lower(), "slot emote"
+    else:
+        label, cls = names.get(slot, slot), "slot"
+    return f'<div class="{cls}" style="left:{left:.1f}%;top:{top:.1f}%">{html.escape(label)}</div>'
+
+
 def _wheels(profile: Profile) -> str:
-    pages = profile.wheel
-    note = ""
-    if pages is None:
-        pages = [[s["id"] for s in profile.scenes[: se.WHEEL_SLOTS]]]
+    wheel, note = profile.wheel, ""
+    if wheel is None:
+        wheel = Wheel.first_scenes(profile.scenes)
         note = '<p class="meta">No wheel in this profile: SpeakEasy keeps the stored wheel, or fills a new one with the first 8 scenes.</p>'
-    names = {s["id"]: s["name"] for s in profile.scenes}
+    names = profile.scene_names()
     out = []
-    for number, page in enumerate(pages, start=1):
-        slots = []
-        for index in range(se.WHEEL_SLOTS):
-            slot = page[index] if index < len(page) else ""
-            angle = -math.pi / 2 + index * 2 * math.pi / se.WHEEL_SLOTS
-            left, top = 50 + 38 * math.cos(angle), 50 + 38 * math.sin(angle)
-            if not slot:
-                label, cls = "empty", "slot empty"
-            elif slot.startswith(se.EMOTE_SLOT_PREFIX):
-                label, cls = "/" + slot[len(se.EMOTE_SLOT_PREFIX) :].lower(), "slot emote"
-            else:
-                label, cls = names.get(slot, slot), "slot"
-            slots.append(f'<div class="{cls}" style="left:{left:.1f}%;top:{top:.1f}%">{html.escape(label)}</div>')
-        out.append(f'<div class="wheel"><div class="hub">page {number}</div>{"".join(slots)}</div>')
+    for number, page in enumerate(wheel.pages, start=1):
+        slots = "".join(_wheel_slot(index, page[index] if index < len(page) else "", names) for index in range(se.WHEEL_SLOTS))
+        out.append(f'<div class="wheel"><div class="hub">page {number}</div>{slots}</div>')
     return f'<section class="card"><h2>Emote wheel</h2>{note}<div class="wheels">{"".join(out)}</div></section>'
+
+
+def _trigger_detail(trigger: Trigger) -> str:
+    if trigger.spells:
+        return ", ".join(s.spell + (f" ({s.item})" if s.item else "") for s in trigger.spells)
+    if trigger.event == "LOW_HEALTH":
+        return f"below {trigger.threshold}% health"
+    return ""
+
+
+def _trigger_row(trigger: Trigger, names: dict[str, str]) -> str:
+    cells = (
+        trigger.event,
+        se.EVENTS[trigger.event],
+        _trigger_detail(trigger),
+        names.get(trigger.scene_id, trigger.scene_id),
+        f"{trigger.chance}%",
+        f"{trigger.cooldown}s",
+        "yes" if trigger.enabled else "no",
+    )
+    return "<tr>" + "".join(f"<td>{html.escape(str(c))}</td>" for c in cells) + "</tr>"
 
 
 def _triggers(profile: Profile) -> str:
     if not profile.triggers:
         return ""
-    names = {s["id"]: s["name"] for s in profile.scenes}
-    rows = []
-    for t in profile.triggers:
-        options = t.get("options") or {}
-        detail = ""
-        if t["event"] == "LOW_HEALTH":
-            detail = f"below {options['threshold']}% health"
-        if options.get("spells"):
-            detail = ", ".join(s["spell"] + (f" ({s['item']})" if s.get("item") else "") for s in options["spells"])
-        rows.append(
-            "<tr>"
-            + "".join(
-                f"<td>{html.escape(str(c))}</td>"
-                for c in (
-                    t["event"],
-                    se.EVENTS[t["event"]],
-                    detail,
-                    names.get(t["sceneId"], t["sceneId"]),
-                    f"{t['chance']}%",
-                    f"{t['cooldown']}s",
-                    "yes" if t["enabled"] else "no",
-                )
-            )
-            + "</tr>"
-        )
+    names = profile.scene_names()
+    rows = "".join(_trigger_row(trigger, names) for trigger in profile.triggers)
     head = "".join(f"<th>{h}</th>" for h in ("Event", "When", "Details", "Scene", "Chance", "Cooldown", "On"))
-    return f'<section class="card"><h2>Triggers</h2><table><tr>{head}</tr>{"".join(rows)}</table></section>'
+    return f'<section class="card"><h2>Triggers</h2><table><tr>{head}</tr>{rows}</table></section>'
 
 
 def _issues(profile: Profile) -> str:
@@ -191,19 +189,30 @@ def _issues(profile: Profile) -> str:
     return f'<section class="card"><h2>Validation</h2><ul class="issues">{items}</ul></section>'
 
 
-def render(profile: Profile) -> str:
-    values = _sample_values(profile)
+def _header(profile: Profile) -> str:
     character = profile.character
-    title = character.get("name") or "SpeakEasy scenes"
-    facts = [character.get(k) for k in ("race", "class", "faction", "realm")]
+    facts = " · ".join(str(character[k]) for k in ("race", "class", "faction", "realm") if character.get(k))
     tags = character.get("personality") or []
     if isinstance(tags, str):
         tags = [tags]
+    return (
+        f"<header><h1>{html.escape(_title(profile))}</h1>"
+        f'<div class="meta">{html.escape(facts)} &mdash; target: {html.escape(profile.target)}</div>'
+        f'<div class="tags">{"".join(f"<span>{html.escape(str(t))}</span>" for t in tags)}</div></header>'
+    )
+
+
+def _title(profile: Profile) -> str:
+    return str(profile.character.get("name") or "SpeakEasy scenes")
+
+
+def render(profile: Profile) -> str:
+    """Return the standalone HTML preview page for ``profile``."""
+    values = _sample_values(profile)
     samples = ", ".join(f"{{{k}}} = {v or '(blank)'}" for k, v in values.items())
     body = [
-        f"<header><h1>{html.escape(str(title))}</h1>"
-        f'<div class="meta">{html.escape(" · ".join(str(f) for f in facts if f))} &mdash; target: {html.escape(profile.target)}</div>'
-        f'<div class="tags">{"".join(f"<span>{html.escape(str(t))}</span>" for t in tags)}</div></header><main>',
+        _header(profile),
+        "<main>",
         _issues(profile),
         f'<p class="meta">Sample values: {html.escape(samples)}</p>',
         _wheels(profile),
@@ -215,5 +224,5 @@ def render(profile: Profile) -> str:
         '<!doctype html><html lang="en"><head><meta charset="utf-8">'
         "<meta http-equiv=\"Content-Security-Policy\" content=\"default-src 'none'; style-src 'unsafe-inline'\">"
         '<meta name="viewport" content="width=device-width,initial-scale=1">'
-        f"<title>{html.escape(str(title))} — SpeakEasy preview</title><style>{CSS}</style></head><body>" + "".join(body) + "</body></html>"
+        f"<title>{html.escape(_title(profile))} — SpeakEasy preview</title><style>{CSS}</style></head><body>" + "".join(body) + "</body></html>"
     )
