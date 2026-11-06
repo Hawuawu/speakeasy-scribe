@@ -1,0 +1,35 @@
+# Example: a Human warrior. Compare the voice with Aelindra's.
+character:
+  name: Tomas
+  realm: Argent Dawn
+  race: Human
+  class: Warrior
+  faction: Alliance
+  personality: [blunt, loyal, likes his ale]
+  voice:
+    register: plain, soldierly
+    habits: ["calls people \"friend\" or \"lad\"", "swears by the Light", short sentences]
+    avoid: [flowery speech, elven phrases]
+  background: Veteran of the Stormwind Army, now a caravan guard.
+target: character
+
+scenes:
+  - name: Greeting
+    channel: SAY
+    lines:
+      - "Light keep you, {targetName}."
+      - "Oi, {targetName}. Cold {timeOfDay} for it."
+  - name: Tavern
+    channel: SAY
+    lines:
+      - { text: "Another round! The caravan can wait.", emote: CHEER }
+      - "Pour it straight, friend. No elf-wine."
+  - name: Charge
+    channel: YELL
+    lines:
+      - "For Stormwind!"
+      - "On me, lads!"
+
+triggers:
+  - { event: ENTER_COMBAT, scene: charge, chance: 30, cooldown: 60 }
+  - { event: REST_AREA, scene: tavern, chance: 20, cooldown: 1800 }

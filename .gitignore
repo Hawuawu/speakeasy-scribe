@@ -1,0 +1,14 @@
+__pycache__/
+*.egg-info/
+.venv/
+build/
+dist/
+.coverage
+coverage.xml
+htmlcov/
+.pytest_cache/
+.ruff_cache/
+*-preview.html
+.scribe.yaml
+*.spec
+coverage.json

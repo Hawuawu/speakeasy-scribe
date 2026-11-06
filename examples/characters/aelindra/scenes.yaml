@@ -1,0 +1,49 @@
+scenes:
+  - name: Greeting
+    channel: SAY
+    emote: BOW
+    lines:
+      - "Ishnu-alah, {targetName}. May the moon light your path this {timeOfDay}."
+      - "Well met, young one. {zone} is kinder to those who walk it softly."
+      - text: "Elune watches over you, {targetName}."
+        emote: WAVE
+
+  - name: Farewell
+    id: farewell
+    channel: SAY
+    lines:
+      - "Elune-adore, {targetName}."
+      - "Go gently. The roots remember every step."
+
+  - name: Shifting
+    channel: EMOTE
+    lines:
+      - "lowers her head as fur ripples along her arms, and in a heartbeat a great cat stands where she was."
+      - "murmurs a word to the wild, \"Teldrassil remembers.\" Her shape blurs into feathers."
+
+  - name: Battle
+    channel: SAY
+    cooldown: 4
+    lines:
+      - "The forest does not forgive, {targetName}."
+      - "By root and branch!"
+      - "You have been weighed by the wilds and found wanting."
+
+  - name: Wounded
+    channel: EMOTE
+    lines:
+      - "presses a palm to her side; faint moonlight gathers under her fingers."
+
+  - name: Meal
+    channel: EMOTE
+    lines:
+      - "breaks a piece of {itemName} and leaves a crumb at the roots of the nearest tree."
+
+triggers:
+  - { event: ENTER_COMBAT, scene: battle, chance: 25, cooldown: 90 }
+  - { event: LOW_HEALTH, scene: wounded, threshold: 30, chance: 100, cooldown: 120 }
+  - { event: SPELL_CAST, scene: shifting, spells: [Cat Form, Travel Form], chance: 40, cooldown: 300 }
+  - { event: EAT_DRINK, scene: meal, chance: 50, cooldown: 600 }
+
+wheel:
+  - [greeting, farewell, shifting, battle, "emote:BOW", "emote:DANCE", "emote:SIT", ""]

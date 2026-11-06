@@ -1,0 +1,3 @@
+10049	INFO	Non-Storable Content: previews are served with Cache-Control no-store on purpose.
+10055	INFO	CSP style-src unsafe-inline: the preview is one self-contained HTML file (opened from disk) so its CSS is inline; default-src none forbids every script.
+10109	INFO	Modern Web Application: informational.
