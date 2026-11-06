@@ -1,0 +1,79 @@
+name: Security
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: '17 4 * * 1'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  sast:
+    name: SAST (Semgrep)
+    runs-on: ubuntu-latest
+    container: semgrep/semgrep
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - run: semgrep scan --config p/python --config p/secrets --config p/github-actions --metrics=off --error --exclude tests/upstream
+
+  bandit:
+    name: SAST (Ruff flake8-bandit rules)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
+        with:
+          python-version: '3.13'
+      - run: pip install ruff
+      - run: ruff check --select S --output-format=github .
+
+  secrets:
+    name: Secret scan (gitleaks)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+      - name: gitleaks (full history)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          v=$(gh release view -R gitleaks/gitleaks --json tagName -q .tagName)
+          gh release download "$v" -R gitleaks/gitleaks -p "gitleaks_${v#v}_linux_x64.tar.gz" -O - | tar xz gitleaks
+          ./gitleaks git . --redact --verbose
+
+  deps:
+    name: Dependency audit (pip-audit)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
+        with:
+          python-version: '3.13'
+      - run: pip install pip-audit -e ".[dev]" pyinstaller
+      - run: pip-audit --skip-editable
+
+  dast:
+    name: DAST (OWASP ZAP baseline)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
+        with:
+          python-version: '3.13'
+      - run: pip install -e .
+      - name: Serve generated previews with hardened headers
+        run: |
+          python scripts/serve_preview.py --port 4173 examples/characters/* &
+          for i in $(seq 30); do curl -fs http://localhost:4173/ >/dev/null && break; sleep 1; done
+      - name: ZAP baseline
+        run: |
+          mkdir -p zap && chmod 777 zap && cp .zap/rules.tsv zap/
+          docker run --rm --network host -v "$PWD/zap:/zap/wrk:rw" ghcr.io/zaproxy/zaproxy:stable \
+            zap-baseline.py -t http://localhost:4173 -c rules.tsv -r report.html -J report.json
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        if: always()
+        with:
+          name: zap-report
+          path: zap/

@@ -1,0 +1,63 @@
+name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  test:
+    name: Test (${{ matrix.os }}, Python ${{ matrix.python }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python: ['3.10', '3.13']
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Lua 5.1 (runs SpeakEasy's own clean-up on our output)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update -q && sudo apt-get install -yq lua5.1
+      - run: pip install -e ".[dev]"
+      - run: ruff check .
+      - run: ruff format --check .
+      - run: mypy
+      - run: pytest --cov-report=json
+      - name: Examples validate and preview
+        run: |
+          speakeasy-scribe validate examples/characters/aelindra
+          speakeasy-scribe preview examples/characters/aelindra -o preview.html
+      - name: Coverage summary
+        if: runner.os == 'Linux' && matrix.python == '3.13'
+        run: python -c "import json;t=json.load(open('coverage.json'))['totals'];print(f\"| metric | % |\\n|---|---|\\n| lines | {t['percent_covered']:.1f} |\")" >> "$GITHUB_STEP_SUMMARY"
+
+  badges:
+    needs: test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
+        with:
+          python-version: '3.13'
+      - run: sudo apt-get update -q && sudo apt-get install -yq lua5.1
+      - run: pip install -e ".[dev]"
+      - run: pytest --cov-report=json | tee /tmp/pytest.log
+      - name: Publish badges to the `badges` branch
+        run: |
+          mkdir -p /tmp/badges
+          python scripts/badge.py coverage.json /tmp/pytest.log /tmp/badges
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git fetch origin badges && git checkout badges || git checkout --orphan badges
+          git rm -rfq . 2>/dev/null || true
+          cp /tmp/badges/*.svg .
+          git add coverage.svg tests.svg
+          git commit -qm "badges: $(cat /tmp/badges/summary.txt)" || exit 0
+          git push origin badges
