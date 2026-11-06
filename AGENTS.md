@@ -107,7 +107,7 @@ SpeakEasy supports exactly these events: `ENTER_COMBAT`, `LEAVE_COMBAT`, `LOW_HE
 
 ## Changing this tool
 
-Python ≥ 3.9, PyYAML only at runtime. Code in `src/speakeasy_scribe/`:
+Python ≥ 3.10, PyYAML only at runtime. Code in `src/speakeasy_scribe/`:
 `luadata.py` (data-only Lua SavedVariables reader/writer; never executes Lua), `speakeasy.py` (SpeakEasy's
 rules), `model.py` (YAML → validated scenes), `savedvars.py` (WTF paths, merge, backups), `preview.py`
 (HTML), `cli.py`. Run `ruff check . && ruff format --check . && pytest` before committing (pre-commit runs

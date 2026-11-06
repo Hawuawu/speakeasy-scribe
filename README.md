@@ -32,7 +32,7 @@ speakeasy-scribe preview characters/aelindra -o aelindra.html   # open in a brow
 ## Game PC (minimal)
 
 Either download `speakeasy-scribe.exe` from [Releases](https://github.com/Hawuawu/speakeasy-scribe/releases)
-(no Python needed) or `pip install git+https://github.com/Hawuawu/speakeasy-scribe` (Python ≥ 3.9 and PyYAML).
+(no Python needed) or `pip install git+https://github.com/Hawuawu/speakeasy-scribe` (Python ≥ 3.10 and PyYAML).
 Copy the `characters/` folder over, **close WoW completely**, then:
 
 ```bash
@@ -69,7 +69,7 @@ targeting an NPC. There is no "joined a party" trigger; put such a scene on the 
 
 ## Security
 
-- **CI:** ruff lint and format, pytest with ≥ 90 % coverage on Linux and Windows, Python 3.9 and 3.13, and a
+- **CI:** ruff lint and format, pytest with ≥ 90 % coverage on Linux and Windows, Python 3.10 and 3.13, and a
   check that SpeakEasy's own load-time clean-up keeps every scene we write.
 - **Security workflow:** Semgrep SAST (`p/python`, `p/secrets`, `p/github-actions`), Ruff bandit rules,
   gitleaks over full history, pip-audit, and an OWASP ZAP baseline DAST scan of generated previews served
