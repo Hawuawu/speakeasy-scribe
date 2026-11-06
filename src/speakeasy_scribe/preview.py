@@ -160,7 +160,7 @@ def _triggers(profile: Profile) -> str:
     for t in profile.triggers:
         options = t.get("options") or {}
         detail = ""
-        if "threshold" in options:
+        if t["event"] == "LOW_HEALTH":
             detail = f"below {options['threshold']}% health"
         if options.get("spells"):
             detail = ", ".join(s["spell"] + (f" ({s['item']})" if s.get("item") else "") for s in options["spells"])

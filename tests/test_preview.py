@@ -8,7 +8,7 @@ def test_preview_shows_chat_wheel_and_triggers():
     assert "Ashenvale" in page
     assert "Elune-adore" in page
     assert "page 1" in page and "/dance" in page
-    assert "LOW_HEALTH" in page and "below 30% health" in page
+    assert "LOW_HEALTH" in page and page.count("below 30% health") == 1
     assert "Cat Form" in page
     assert "Validation passed" in page
     assert "Content-Security-Policy" in page and "<script" not in page
